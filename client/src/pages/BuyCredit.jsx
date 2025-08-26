@@ -17,7 +17,7 @@ const BuyCredit = () => {
       amount: order.amount,
       currency: order.currency,
       description: "Credits Payment",
-      order_id: order.id,
+      order_id: order.id, 
       receipt: order.receipt,
       handler: async (response) => {
         try {
