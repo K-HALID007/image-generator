@@ -1,5 +1,6 @@
 import userModel from "../models/userModel.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { json } from "express";
 import jwt from "jsonwebtoken";
 import razorpay from "razorpay";
@@ -125,38 +126,91 @@ const paymentRazorpay = async (req, res) => {
     };
 
     const order = await razorpayInstance.orders.create(options);
-    res.json({ success: true, order });
+
+    await transactionModel.findByIdAndUpdate(newTransaction._id, {
+      razorpayOrderId: order.id,
+    });
+
+    
+    res.json({
+      success: true,
+      order: {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        receipt: order.receipt,
+      },
+    });
   } catch (error) {
     console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
+// const verifyRazorpay = async (req, res) => {
+//   try {
+//     const { razorpay_order_id } = req.body;
+//     const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
+//     if (orderInfo.status === "paid") {
+//       const transactionData = await transactionModel.findById(
+//         orderInfo.receipt,
+//       );
+
+//       if (transactionData.payment) {
+//         return res.json({ success: false, message: "Payment Failed" });
+//       }
+//       const userData = await userModel.findById(transactionData.userId);
+//       const creditBalance = userData.creditBalance + transactionData.credits;
+//       await userModel.findByIdAndUpdate(userData._id, { creditBalance });
+
+//       await transactionModel.findByIdAndUpdate(transactionData._id, {
+//         payment: true,
+//       });
+//       res.json({ success: true, message: "Credits Added" });
+//     } else {
+//       res.json({ success: false, message: "Payment Failed" });
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     res.json({ success: false, message: error.message });
+//   }
+// };
+
 const verifyRazorpay = async (req, res) => {
   try {
-    const { razorpay_order_id } = req.body;
-    const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
-    if (orderInfo.status === "paid") {
-      const transactionData = await transactionModel.findById(
-        orderInfo.receipt
-      );
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
 
-      if (transactionData.payment) {
-        return res.json({ success: false, message: "Payment Failed" });
-      }
-      const userData = await userModel.findById(transactionData.userId);
-      const creditBalance = userData.creditBalance + transactionData.credits;
-      await userModel.findByIdAndUpdate(userData._id,{ creditBalance });
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
 
-      await transactionModel.findByIdAndUpdate(transactionData._id, {
-        payment: true,
-      });
-      res.json({ success: true, message: "Credits Added" });
-    } else {
-      res.json({ success: false, message: "Payment Failed" });
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.json({ success: false, message: "Invalid signature" });
     }
+
+    const transaction = await transactionModel.findOne({
+      razorpayOrderId: razorpay_order_id,
+    });
+
+    if (!transaction || transaction.payment) {
+      return res.json({ success: false, message: "Invalid transaction" });
+    }
+
+    await userModel.findByIdAndUpdate(transaction.userId, {
+      $inc: { creditBalance: transaction.credits },
+    });
+
+    await transactionModel.findByIdAndUpdate(transaction._id, {
+      payment: true,
+      razorpayPaymentId: razorpay_payment_id,
+    });
+
+    res.json({ success: true });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };

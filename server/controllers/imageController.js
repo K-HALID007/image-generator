@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken"; // Ensure you import JWT if you're using it
+import jwt from "jsonwebtoken";
 import axios from "axios";
 import userModel from "../models/userModel.js";
 import FormData from "form-data";
@@ -7,17 +7,22 @@ export const genrateImage = async (req, res) => {
   try {
     const { prompt } = req.body;
 
-    // Extract token from header and decode user ID
-    const token = req.headers.token;
-    if (!token)
-      return res.json({ success: false, message: "No token provided" });
+    const userId = req.userId;
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // Use your actual secret
-    const userId = decoded.id;
+    if (!userId) {
+      return res.json({
+        success: false,
+        message: "Not Authorized. Login Again",
+      });
+    }
+
+    if (!prompt) {
+      return res.json({ success: false, message: "Prompt is required" });
+    }
 
     const user = await userModel.findById(userId);
-    if (!user || !prompt) {
-      return res.json({ success: false, message: "Missing Details" });
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
     }
 
     if (user.creditBalance <= 0) {
@@ -39,7 +44,7 @@ export const genrateImage = async (req, res) => {
           "x-api-key": process.env.CLIPDROP_API,
         },
         responseType: "arraybuffer",
-      }
+      },
     );
 
     const base64Image = Buffer.from(data, "binary").toString("base64");
