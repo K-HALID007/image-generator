@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import razorpay from "razorpay";
 import transactionModel from "../models/transactionModel.js";
 import transporter from "../config/nodemailer.js";
+import axios from "axios";
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -233,30 +234,59 @@ const sendResetOtp = async (req, res) => {
     user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000;
     await user.save();
 
-    const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: user.email,
-      subject: "Password Reset OTP - Imagify",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-          <h2 style="color: #2563eb; text-align: center;">Imagify Password Reset</h2>
-          <p>Hello <b>${user.name}</b>,</p>
-          <p>You requested a password reset for your Imagify account. Use the OTP below to reset your password:</p>
-          <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0; border-radius: 6px;">
-            ${otp}
-          </div>
-          <p style="color: #64748b; font-size: 14px;">This OTP is valid for 15 minutes. If you did not request this, please ignore this email.</p>
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #2563eb; text-align: center;">Imagify Password Reset</h2>
+        <p>Hello <b>${user.name}</b>,</p>
+        <p>You requested a password reset for your Imagify account. Use the OTP below to reset your password:</p>
+        <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0; border-radius: 6px;">
+          ${otp}
         </div>
-      `,
-    };
-    await transporter.sendMail(mailOptions);
+        <p style="color: #64748b; font-size: 14px;">This OTP is valid for 15 minutes. If you did not request this, please ignore this email.</p>
+      </div>
+    `;
+
+    if (process.env.BREVO_API_KEY) {
+      // Send via Brevo HTTPS REST API (Port 443 - never blocked by Render)
+      await axios.post(
+        "https://api.brevo.com/v3/smtp/email",
+        {
+          sender: {
+            name: "Imagify",
+            email: process.env.BREVO_SENDER_EMAIL || "sayedshafin780@gmail.com",
+          },
+          to: [{ email: user.email, name: user.name }],
+          subject: "Password Reset OTP - Imagify",
+          htmlContent: html,
+        },
+        {
+          headers: {
+            "api-key": process.env.BREVO_API_KEY,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+    } else {
+      // Fallback to Nodemailer SMTP transporter
+      const mailOptions = {
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: user.email,
+        subject: "Password Reset OTP - Imagify",
+        html,
+      };
+      await transporter.sendMail(mailOptions);
+    }
 
     return res.json({
       success: true,
       message: "Reset OTP sent to your email",
     });
   } catch (error) {
-    return res.json({ success: false, message: error.message });
+    return res.json({
+      success: false,
+      message: error.response?.data?.message || error.message,
+    });
   }
 };
 
