@@ -4,16 +4,27 @@ import { AppContext } from "../context/AppContext";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
-  const [state, setState] = useState("Login");
+  const [state, setState] = useState("Login"); // "Login" | "Sign Up" | "Forgot Password"
   const { setShowLogin, backendUrl, setToken, setUser } =
     useContext(AppContext);
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const onSubmitHandler = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
       if (state === "Login") {
         const { data } = await axios.post(backendUrl + "/api/user/login", {
@@ -25,10 +36,11 @@ const Login = () => {
           setUser(data.user);
           localStorage.setItem("token", data.token);
           setShowLogin(false);
+          toast.success("Logged in successfully!");
         } else {
           toast.error(data.message);
         }
-      } else {
+      } else if (state === "Sign Up") {
         const { data } = await axios.post(backendUrl + "/api/user/register", {
           name,
           email,
@@ -39,12 +51,45 @@ const Login = () => {
           setUser(data.user);
           localStorage.setItem("token", data.token);
           setShowLogin(false);
+          toast.success("Account created successfully!");
         } else {
           toast.error(data.message);
         }
+      } else if (state === "Forgot Password") {
+        if (!isOtpSent) {
+          // Send OTP
+          const { data } = await axios.post(
+            backendUrl + "/api/user/send-reset-otp",
+            { email }
+          );
+          if (data.success) {
+            setIsOtpSent(true);
+            toast.success(data.message || "OTP sent successfully!");
+          } else {
+            toast.error(data.message);
+          }
+        } else {
+          // Verify OTP & Reset Password
+          const { data } = await axios.post(
+            backendUrl + "/api/user/reset-password",
+            { email, otp, newPassword }
+          );
+          if (data.success) {
+            toast.success(data.message || "Password reset successfully!");
+            setState("Login");
+            setIsOtpSent(false);
+            setOtp("");
+            setNewPassword("");
+            setPassword("");
+          } else {
+            toast.error(data.message);
+          }
+        }
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,86 +101,208 @@ const Login = () => {
   }, []);
 
   return (
-    <div className="fixed top-0 left-0 right-0 bottom-0 z-10 backdrop-blur-sm bg-black/30 flex justify-center items-center">
+    <div className="fixed top-0 left-0 right-0 bottom-0 z-50 backdrop-blur-sm bg-black/40 flex justify-center items-center p-4">
       <motion.form
         onSubmit={onSubmitHandler}
         initial={{ opacity: 0.2, y: 50 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.4 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="relative bg-white p-10 rounded-xl text-slate-500"
+        className="relative bg-white p-8 sm:p-10 rounded-2xl shadow-2xl text-slate-500 w-full max-w-md"
       >
-        <h1 className="text-center text-2xl text-neutral-700 font-medium">
-          {state}
+        <h1 className="text-center text-2xl text-neutral-800 font-semibold">
+          {state === "Forgot Password"
+            ? isOtpSent
+              ? "Reset Password"
+              : "Forgot Password"
+            : state}
         </h1>
-        <p className="text-sm">Welcome back! Please sign in to continue</p>
-        {state !== "Login" && (
-          <div className="border px-6 py-2 flex items-center gap-2 rounded-full mt-5">
-            <img src={assets.user_icon} width={15} alt="user_icon" />
+        <p className="text-sm text-center mt-1 text-slate-500">
+          {state === "Login"
+            ? "Welcome back! Please sign in to continue"
+            : state === "Sign Up"
+            ? "Create an account to get 5 free credits"
+            : isOtpSent
+            ? "Enter the 6-digit OTP and your new password"
+            : "Enter your registered email to receive an OTP"}
+        </p>
+
+        {/* Full Name input for Sign Up */}
+        {state === "Sign Up" && (
+          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-5 focus-within:border-blue-500 transition-all">
+            <img src={assets.user_icon} width={16} alt="user_icon" />
             <input
               onChange={(e) => setName(e.target.value)}
               value={name}
-              className="outline-none text-sm"
+              className="outline-none text-sm w-full bg-transparent"
               type="text"
               placeholder="Full Name"
               required
             />
           </div>
         )}
-        <div className="border px-6 py-2 flex items-center gap-2 rounded-full mt-4">
-          <img src={assets.email_icon} width={15} alt="user_icon" />
-          <input
-            onChange={(e) => setEmail(e.target.value)}
-            value={email}
-            className="outline-none text-sm"
-            type="email"
-            placeholder="Email id"
-            required
-          />
-        </div>
-        <div className="border px-6 py-2 flex items-center gap-2 rounded-full mt-4">
-          <img src={assets.lock_icon} width={15} alt="user_icon" />
-          <input
-            onChange={(e) => setPassword(e.target.value)}
-            value={password}
-            className="outline-none text-sm"
-            type="password"
-            placeholder="Password"
-            required
-          />
-        </div>
-        <p className="text-sm text-blue-600 my-4 cursor-pointer">
-          Forgot password
-        </p>
-        <button className="bg-blue-600 w-full text-white py-2 rounded-full">
-          {state == "Login" ? "login" : "create account"}
+
+        {/* Email input (used in Login, Sign Up, and Forgot Password step 1) */}
+        {(!isOtpSent || state !== "Forgot Password") && (
+          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+            <img src={assets.email_icon} width={16} alt="email_icon" />
+            <input
+              onChange={(e) => setEmail(e.target.value)}
+              value={email}
+              className="outline-none text-sm w-full bg-transparent"
+              type="email"
+              placeholder="Email address"
+              required
+            />
+          </div>
+        )}
+
+        {/* Password input for Login and Sign Up */}
+        {state !== "Forgot Password" && (
+          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+            <img src={assets.lock_icon} width={16} alt="lock_icon" />
+            <input
+              onChange={(e) => setPassword(e.target.value)}
+              value={password}
+              className="outline-none text-sm w-full bg-transparent"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        )}
+
+        {/* OTP and New Password for Forgot Password (Step 2) */}
+        {state === "Forgot Password" && isOtpSent && (
+          <>
+            <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+              <span className="text-sm font-bold text-gray-500">#</span>
+              <input
+                onChange={(e) => setOtp(e.target.value)}
+                value={otp}
+                className="outline-none text-sm w-full bg-transparent tracking-widest font-semibold"
+                type="text"
+                maxLength={6}
+                placeholder="6-digit OTP"
+                required
+              />
+            </div>
+            <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+              <img src={assets.lock_icon} width={16} alt="lock_icon" />
+              <input
+                onChange={(e) => setNewPassword(e.target.value)}
+                value={newPassword}
+                className="outline-none text-sm w-full bg-transparent"
+                type={showNewPassword ? "text" : "password"}
+                placeholder="New Password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                aria-label={showNewPassword ? "Hide password" : "Show password"}
+              >
+                {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Forgot password trigger in Login state */}
+        {state === "Login" && (
+          <p
+            onClick={() => {
+              setState("Forgot Password");
+              setIsOtpSent(false);
+            }}
+            className="text-sm text-blue-600 my-4 cursor-pointer hover:underline text-right"
+          >
+            Forgot password?
+          </p>
+        )}
+
+        {/* Action Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 transition-all w-full text-white py-2.5 rounded-full mt-4 font-medium disabled:opacity-60 cursor-pointer"
+        >
+          {loading
+            ? "Please wait..."
+            : state === "Login"
+            ? "Login"
+            : state === "Sign Up"
+            ? "Create Account"
+            : !isOtpSent
+            ? "Send Reset OTP"
+            : "Reset Password"}
         </button>
-        {state === "Login" ? (
-          <p className="mt-5 text-center">
-            Don't have an account?
+
+        {/* Resend OTP / Change Email helper */}
+        {state === "Forgot Password" && isOtpSent && (
+          <p
+            onClick={() => setIsOtpSent(false)}
+            className="text-xs text-center text-blue-600 mt-3 cursor-pointer hover:underline"
+          >
+            Didn't receive code or wrong email? Try again
+          </p>
+        )}
+
+        {/* Footer toggles between states */}
+        {state === "Login" && (
+          <p className="mt-5 text-center text-sm">
+            Don't have an account?{" "}
             <span
               onClick={() => setState("Sign Up")}
-              className="text-blue-600 cursor-pointer"
+              className="text-blue-600 cursor-pointer font-medium hover:underline"
             >
               Sign Up
             </span>
           </p>
-        ) : (
-          <p className="mt-5 text-center">
-            Already have an account?
+        )}
+
+        {state === "Sign Up" && (
+          <p className="mt-5 text-center text-sm">
+            Already have an account?{" "}
             <span
               onClick={() => setState("Login")}
-              className="text-blue-600 cursor-pointer"
+              className="text-blue-600 cursor-pointer font-medium hover:underline"
             >
               Login
             </span>
           </p>
         )}
+
+        {state === "Forgot Password" && (
+          <p className="mt-5 text-center text-sm">
+            Remember your password?{" "}
+            <span
+              onClick={() => {
+                setState("Login");
+                setIsOtpSent(false);
+              }}
+              className="text-blue-600 cursor-pointer font-medium hover:underline"
+            >
+              Back to Login
+            </span>
+          </p>
+        )}
+
+        {/* Close Modal Button */}
         <img
           onClick={() => setShowLogin(false)}
           src={assets.cross_icon}
           alt="cross_icon"
-          className="absolute top-5 right-5 cursor-pointer"
+          className="absolute top-5 right-5 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
         />
       </motion.form>
     </div>

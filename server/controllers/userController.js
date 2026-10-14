@@ -5,6 +5,7 @@ import { json } from "express";
 import jwt from "jsonwebtoken";
 import razorpay from "razorpay";
 import transactionModel from "../models/transactionModel.js";
+import transporter from "../config/nodemailer.js";
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -215,10 +216,95 @@ const verifyRazorpay = async (req, res) => {
   }
 };
 
+const sendResetOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.json({ success: false, message: "Email is required" });
+    }
+
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.json({ success: false, message: "User not found with this email" });
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    user.resetOtp = otp;
+    user.resetOtpExpireAt = Date.now() + 15 * 60 * 1000;
+    await user.save();
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: user.email,
+      subject: "Password Reset OTP - Imagify",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+          <h2 style="color: #2563eb; text-align: center;">Imagify Password Reset</h2>
+          <p>Hello <b>${user.name}</b>,</p>
+          <p>You requested a password reset for your Imagify account. Use the OTP below to reset your password:</p>
+          <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #1e293b; margin: 20px 0; border-radius: 6px;">
+            ${otp}
+          </div>
+          <p style="color: #64748b; font-size: 14px;">This OTP is valid for 15 minutes. If you did not request this, please ignore this email.</p>
+        </div>
+      `,
+    };
+    await transporter.sendMail(mailOptions);
+
+    return res.json({
+      success: true,
+      message: "Reset OTP sent to your email",
+    });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.json({ success: false, message: "Missing required details" });
+    }
+
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    if (!user.resetOtp || user.resetOtp !== otp) {
+      return res.json({ success: false, message: "Invalid OTP" });
+    }
+
+    if (Date.now() > user.resetOtpExpireAt) {
+      return res.json({ success: false, message: "OTP has expired" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    user.resetOtp = "";
+    user.resetOtpExpireAt = 0;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Password reset successful! Please login",
+    });
+  } catch (error) {
+    console.log(error);
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 export {
   registerUser,
   loginUser,
   userCredits,
   paymentRazorpay,
   verifyRazorpay,
+  sendResetOtp,
+  resetPassword,
 };
+
