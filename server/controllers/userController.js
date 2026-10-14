@@ -260,6 +260,35 @@ const sendResetOtp = async (req, res) => {
   }
 };
 
+const verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    if (!user.resetOtp || user.resetOtp !== otp) {
+      return res.json({ success: false, message: "Invalid OTP" });
+    }
+
+    if (Date.now() > user.resetOtpExpireAt) {
+      return res.json({
+        success: false,
+        message: "OTP has expired. Please request a new one.",
+      });
+    }
+
+    return res.json({ success: true, message: "OTP verified successfully!" });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};
+
 const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
@@ -293,7 +322,6 @@ const resetPassword = async (req, res) => {
       message: "Password reset successful! Please login",
     });
   } catch (error) {
-    console.log(error);
     return res.json({ success: false, message: error.message });
   }
 };
@@ -305,6 +333,8 @@ export {
   paymentRazorpay,
   verifyRazorpay,
   sendResetOtp,
+  verifyResetOtp,
   resetPassword,
 };
+
 

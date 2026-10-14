@@ -6,6 +6,7 @@ import {
   paymentRazorpay,
   verifyRazorpay,
   sendResetOtp,
+  verifyResetOtp,
   resetPassword,
 } from "../controllers/userController.js";
 import userAuth from "../middlewares/auth.js";
@@ -18,6 +19,7 @@ userRouter.get("/credits", userAuth, userCredits);
 userRouter.post("/pay-razor", userAuth, paymentRazorpay);
 userRouter.post("/verify-razor", verifyRazorpay);
 userRouter.post("/send-reset-otp", sendResetOtp);
+userRouter.post("/verify-reset-otp", verifyResetOtp);
 userRouter.post("/reset-password", resetPassword);
 
 export default userRouter;
