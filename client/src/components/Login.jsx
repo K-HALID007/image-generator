@@ -1,10 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
-import { assets } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Eye, EyeOff } from "lucide-react";
+import { User, Mail, Lock, KeyRound, Eye, EyeOff, X } from "lucide-react";
 
 const Login = () => {
   const [state, setState] = useState("Login"); // "Login" | "Sign Up" | "Forgot Password"
@@ -129,8 +128,8 @@ const Login = () => {
 
         {/* Full Name input for Sign Up */}
         {state === "Sign Up" && (
-          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-5 focus-within:border-blue-500 transition-all">
-            <img src={assets.user_icon} width={16} alt="user_icon" />
+          <div className="border border-gray-300 px-4 py-2.5 flex items-center gap-2.5 rounded-full mt-5 focus-within:border-blue-500 transition-all">
+            <User size={18} className="text-gray-400 shrink-0" />
             <input
               onChange={(e) => setName(e.target.value)}
               value={name}
@@ -144,8 +143,8 @@ const Login = () => {
 
         {/* Email input (used in Login, Sign Up, and Forgot Password step 1) */}
         {(!isOtpSent || state !== "Forgot Password") && (
-          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
-            <img src={assets.email_icon} width={16} alt="email_icon" />
+          <div className="border border-gray-300 px-4 py-2.5 flex items-center gap-2.5 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+            <Mail size={18} className="text-gray-400 shrink-0" />
             <input
               onChange={(e) => setEmail(e.target.value)}
               value={email}
@@ -159,8 +158,8 @@ const Login = () => {
 
         {/* Password input for Login and Sign Up */}
         {state !== "Forgot Password" && (
-          <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
-            <img src={assets.lock_icon} width={16} alt="lock_icon" />
+          <div className="border border-gray-300 px-4 py-2.5 flex items-center gap-2.5 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+            <Lock size={18} className="text-gray-400 shrink-0" />
             <input
               onChange={(e) => setPassword(e.target.value)}
               value={password}
@@ -172,7 +171,7 @@ const Login = () => {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -183,8 +182,8 @@ const Login = () => {
         {/* OTP and New Password for Forgot Password (Step 2) */}
         {state === "Forgot Password" && isOtpSent && (
           <>
-            <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
-              <span className="text-sm font-bold text-gray-500">#</span>
+            <div className="border border-gray-300 px-4 py-2.5 flex items-center gap-2.5 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+              <KeyRound size={18} className="text-gray-400 shrink-0" />
               <input
                 onChange={(e) => setOtp(e.target.value)}
                 value={otp}
@@ -195,8 +194,8 @@ const Login = () => {
                 required
               />
             </div>
-            <div className="border border-gray-300 px-5 py-2.5 flex items-center gap-2 rounded-full mt-4 focus-within:border-blue-500 transition-all">
-              <img src={assets.lock_icon} width={16} alt="lock_icon" />
+            <div className="border border-gray-300 px-4 py-2.5 flex items-center gap-2.5 rounded-full mt-4 focus-within:border-blue-500 transition-all">
+              <Lock size={18} className="text-gray-400 shrink-0" />
               <input
                 onChange={(e) => setNewPassword(e.target.value)}
                 value={newPassword}
@@ -208,7 +207,7 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="focus:outline-none text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
                 aria-label={showNewPassword ? "Hide password" : "Show password"}
               >
                 {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -234,7 +233,7 @@ const Login = () => {
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 transition-all w-full text-white py-2.5 rounded-full mt-4 font-medium disabled:opacity-60 cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 transition-all w-full text-white py-2.5 rounded-full mt-4 font-medium disabled:opacity-60 cursor-pointer shadow-md hover:shadow-lg active:scale-[0.99]"
         >
           {loading
             ? "Please wait..."
@@ -298,12 +297,14 @@ const Login = () => {
         )}
 
         {/* Close Modal Button */}
-        <img
+        <button
+          type="button"
           onClick={() => setShowLogin(false)}
-          src={assets.cross_icon}
-          alt="cross_icon"
-          className="absolute top-5 right-5 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
-        />
+          className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+          aria-label="Close dialog"
+        >
+          <X size={20} />
+        </button>
       </motion.form>
     </div>
   );
